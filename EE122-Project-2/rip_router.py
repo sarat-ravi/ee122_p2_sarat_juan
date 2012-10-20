@@ -3,6 +3,7 @@ from sim.basics import *
 
 '''
 Create your RIP router in this file.
+NOTE: a "node" in the router topology is defined by the source (packet.src)         <-------------------
 '''
 class RIPRouter (Entity):
     def __init__(self):
@@ -18,19 +19,35 @@ class RIPRouter (Entity):
         self.table[self] = {}
 
         """
-        Contains the nodes that send the DiscoveryPacket
+        Contains the neighboring nodes that send the DiscoveryPacket
             key = node
             value = port # 
         """
         self.discovered_nodes = {}
 
+    def get_distance_vector_of(self, node):
+        """
+        returns dv of a certain node
+        """
+        dv = self.table[node]
+        return dv
+
     def get_neighbors(self):
+        """
+        Highly doubt anything is going to call this
+        """
         n = self.discovered_nodes.keys()
 
     def get_cost_of_neighbor(self, neighbor):
+        """
+        This is bullshit, but exists so that we can generalize just in case
+        """
         return 1
 
     def identify_packet(self, packet):
+        """
+        tells us what is the type of packet, so they could be handled independently
+        """
         # identify packet
         is_discovery_packet = isinstance(packet, DiscoveryPacket)
         is_routing_update = isinstance(packet, RoutingUpdate)
@@ -40,7 +57,7 @@ class RIPRouter (Entity):
 
     def handle_discovery_packet(self, packet, port):
         """
-        Add (or remove, if not is_link_up) packet info to discovered_nodes and update table accordingly 
+        Add (or remove, if not is_link_up) packet.src to discovered_nodes and update table accordingly 
         """
         link_up = packet.is_link_up
         if link_up:
@@ -48,17 +65,16 @@ class RIPRouter (Entity):
         else:
             self.discovered_nodes[packet.src] = None
 
+        # TODO: Update table intelligently here
+
     def handle_routing_update_packet(self, packet):
         """
         Get routing table information from someone else, and update table accordingly
         """
+        # the distance vector given by the update packet
+        dv = packet.paths
 
-    def get_distance_vector_of(self, node):
-        """
-        returns dv of a certain node
-        """
-        dv = self.table[node]
-        return dv
+        # TODO: Update table intelligently here
 
     def handle_rx (self, packet, port):
 
