@@ -34,16 +34,20 @@ class LearningSwitch(Entity):
         self.table[source] = port
         return True
     
-    def flood_table(self):
+    def flood_table(self, except_port):
         # code here to broadcast the change in table
+        #discovery_packet = Packet()
+        #self.send(packet=discovery_packet,
+                #port=except_port,
+                #flood=True)
         pass
 
     def send_packet(self, packet, destination):
         dest_port = self.get_destination_port_for(destination=destination) 
         self.send(packet=packet, port=dest_port, flood=False)
 
-    def flood_packet(self, packet):
-        self.send(packet=packet, port=None, floot=True)
+    def flood_packet(self, packet, except_port):
+        self.send(packet=packet, port=except_port, flood=True)
 
     def handle_rx (self, packet, port):
 
@@ -55,12 +59,12 @@ class LearningSwitch(Entity):
 
         if table_updated:
             # code here to broadcast the change in table
-            self.flood_table()
+            self.flood_table(except_port=port)
 
         if self.destination_is_known(destination=destination):
             self.send_packet(packet=packet, destination=destination)
         else:
-            self.flood_packet(packet=packet)
+            self.flood_packet(packet=packet, except_port=port)
 
 
             
