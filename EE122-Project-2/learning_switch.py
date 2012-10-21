@@ -50,7 +50,6 @@ class LearningSwitch(Entity):
         self.send(packet=packet, port=except_port, flood=True)
 
     def handle_rx (self, packet, port):
-
         # Get required packet information
         source, destination, ttl, trace = self._get_packet_info(packet=packet)
 
@@ -65,20 +64,6 @@ class LearningSwitch(Entity):
             self.send_packet(packet=packet, destination=destination)
         else:
             self.flood_packet(packet=packet, except_port=port)
-
-
-            
-                       
-
-
-
-
-
-
-
-
-
-
 
 """
 class Entity(__builtin__.object)

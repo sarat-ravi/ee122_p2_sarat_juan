@@ -25,6 +25,9 @@ class RIPRouter (Entity):
         """
         self.discovered_nodes = {}
 
+    def print_table(self):
+        print self.table
+
     def get_distance_vector_of(self, node):
         """
         returns dv of a certain node
@@ -53,8 +56,7 @@ class RIPRouter (Entity):
         is_routing_update = isinstance(packet, RoutingUpdate)
 
         return is_discovery_packet, is_routing_update
-
-
+    
     def handle_discovery_packet(self, packet, port):
         """
         Add (or remove, if not is_link_up) packet.src to discovered_nodes and update table accordingly 
@@ -66,6 +68,7 @@ class RIPRouter (Entity):
             self.discovered_nodes[packet.src] = None
 
         # TODO: Update table intelligently here
+            
 
     def handle_routing_update_packet(self, packet):
         """
@@ -75,9 +78,47 @@ class RIPRouter (Entity):
         dv = packet.paths
 
         # TODO: Update table intelligently here
+        # tentative notes for rip_router.py:
 
+        # TENTATIVE ALGORITHM, this is for my notes
+        # 1. iterate through table to find min distance to all dest.
+        # destinations = {}
+        # for (hop, distances) in self.table.items():
+        #   for (destination, distances) in distances.items():
+        #     if destinations.has_key(destination):
+        #        if distance < destinations[destination]:
+        #           destinations[destination] = distance
+        #     else:
+        #        destinations[destination] = distance
+        
+        # 2. send out specific packets w/ poison reverse...
+        # 3. port still connected -> don't poison the distance to an immediate neighbor
+        # 4. update intelligently with information
+        # for...packet.add_dest(dest, dist), self.send(...)
+
+
+
+        # def best_hop(self, destination)
+        # 5. need to find the best first hop to the destination
+        # find the route with the lowest hop count
+        # TENTATIVE ALGORITHM
+        # minValue = 9999999
+        # minPort = None
+        # minEntity = None
+        # for hop in self.table.keys():
+        #   givenValue = self.table[hop][destination]
+        #   if givenValue < minValue:
+        #     manValue = givenValue
+        #     minPort = self.ports[hop]
+        #     minEntity = hop
+        #   if givenValue < 100 and givenValue == minValue:
+        #     givenPort = self.ports[hop]
+        #     if givenPort < minPort:
+        #        minPort = givenPort
+        #        minEntity = hop
+        # return minEntity
+        
     def handle_rx (self, packet, port):
-
         is_discovery_packet, is_routing_update = identify_packet(packet=packet)
 
         if is_discovery_packet:
