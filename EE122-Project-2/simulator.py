@@ -19,8 +19,9 @@ import scenarios
 
 time.sleep(1) # Wait a sec for log client to maybe connect
 
+import scenarios.candy as scenario
 #import scenarios.compatibility_test as scenario
-import scenarios.linear as scenario
+#import scenarios.linear as scenario
 scenario.create(switch_type = switch)
 
 # Import some stuff to use from the interpreter
