@@ -14,6 +14,7 @@ class RIPRouter (Entity):
          NOTE: Distance Vector D is also a dict (key, val) = (node, cost)
         """
         self.table = {}
+        self.debug = True
 
         # init self as a node with distance vector {}
         self.table[self] = {}
@@ -24,6 +25,10 @@ class RIPRouter (Entity):
             value = port # 
         """
         self.discovered_nodes = {}
+
+    def log(self, message, caller="(rip_router)"):
+        if self.debug:
+            print "%s: %s" %(str(caller), str(message))
 
     def get_distance_vector_of(self, node):
         """
@@ -79,7 +84,7 @@ class RIPRouter (Entity):
         table_changed = False
 
         my_dv = self.table[self]
-        for node, distance in my_dv:
+        for node, distance in my_dv.items():
             if node == self:
                 continue
 
@@ -108,14 +113,18 @@ class RIPRouter (Entity):
         update_packet = RoutingUpdate()
 
         my_dv = self.table[self]
-        for dest, distance in my_dv:
+        for dest, distance in my_dv.items():
             update_packet.add_destination(dest=dest, distance=distance)
 
         for neighbor, port in self.discovered_nodes.items():
+            if neighbor == self:
+                continue
             if not port:
                 # the link to this neighbor is down
                 continue
 
+            self.log("Advertizing to neighbor: %s" %(str(neighbor)))
+            self.log("Advertizement: " + str(update_packet.paths))
             self.send(packet=update_packet, port=port, flood=False)
 
     def handle_discovery_packet(self, packet, port):
@@ -146,6 +155,7 @@ class RIPRouter (Entity):
         Get routing table information from someone else, and update table accordingly
         """
         # the distance vector given by the update packet
+        self.log("received update packet: %s" %(str(packet)))
         dv = packet.paths
         table_changed = self.add_dv_to_table(source=packet.src, dv=dv)
 
@@ -194,7 +204,7 @@ class RIPRouter (Entity):
 
     def handle_rx (self, packet, port):
 
-        is_discovery_packet, is_routing_update = identify_packet(packet=packet)
+        is_discovery_packet, is_routing_update = self.identify_packet(packet=packet)
 
         if is_discovery_packet:
             self.handle_discovery_packet(packet=packet, port=port)
@@ -208,7 +218,7 @@ class RIPRouter (Entity):
 
             if dest == self:
                 # hand the packet over to the upper layer
-                pass
+                self.send(packet=packet)
 
             if ttl == 0:
                 # packet dropped lol
