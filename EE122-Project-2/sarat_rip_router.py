@@ -62,15 +62,21 @@ class RIPRouter (Entity):
 
 
     def get_min_cost_if_sent_to_neighbor_closest_to_dest(self, dest):
+        self.log("get_min_cost called with destination %s" %(str(dest)))
         min_cost = float("inf") 
         my_dv = self.table[self]
         for neighbor, port in self.discovered_nodes.items():
+            if neighbor == dest:
+                self.log("\tThe neighbor is the dest")
+                return self.table[self][neighbor]
+
             neighbor_dv = self.table[neighbor]
             if not dest in neighbor_dv:
                 # neighbor doesn't know how to get to dest, so theres no point
+                self.log("Neighbor %s doesn't know how to get to dest %s" %(str(neighbor), str(dest)))
                 continue
 
-            cost_to_neighbor = my_dv[neighbor]
+            cost_to_neighbor = 1 
             cost_to_dest_from_neighbor = self.table[neighbor][dest]
             cost_to_dest = cost_to_neighbor + cost_to_dest_from_neighbor
 
@@ -83,29 +89,40 @@ class RIPRouter (Entity):
     def update_belief(self):
         table_changed = False
 
+        self.log("update belief called")
         my_dv = self.table[self]
         for node, distance in my_dv.items():
             if node == self:
                 continue
 
-            old_dist = self.table[self][node]
+            old_dist = distance 
             new_min_dist = self.get_min_cost_if_sent_to_neighbor_closest_to_dest(dest=node)
+            self.log("Old dist is %s and new_min_dist = %s" %(str(old_dist), str(new_min_dist)))
             if not old_dist == new_min_dist:
+                self.log("\tDist changed from %s to %s for neighbor %s" %(str(old_dist), str(new_min_dist), str(node)))
                 table_changed = True
 
-            self.table[self][node] = self.get_min_cost_if_sent_to_neighbor_closest_to_dest(dest=node)
+            self.table[self][node] = new_min_dist 
 
         return table_changed
+
+    def add_new_possible_destinations_to_my_dv(self, new_dv):
+        for possible_destination, distance in new_dv.items():
+            # add this new reachable destination to my dv
+            self.table[self][possible_destination] = distance
 
     def add_dv_to_table(self, source, dv):
         """
         Handles dv insertion into table, returns True if table changed or false ow
         """
         if source in self.table and self.table[source] == dv:
+            self.log("the old dv %s and new dv %s are the same for %s" %(str(self.table[source]), str(dv), str(source)))
             return False
-
+        
+        self.log("adding dv '%s' to source '%s'" %(str(dv), str(source)))
         # table changed for sure, at this point
         self.table[source] = dv
+        self.add_new_possible_destinations_to_my_dv(new_dv=dv)
         table_changed = self.update_belief()
         return table_changed
 
@@ -137,6 +154,7 @@ class RIPRouter (Entity):
             if not neighbor in self.discovered_nodes:
                 # if neighbor is not already there
                 # initialize a dv for our dear neighbor
+                self.log("New neighbor '%s' discovered" %(str(neighbor)))
                 self.table[neighbor] = {}
             self.table[self][neighbor] = 1
 
@@ -144,8 +162,10 @@ class RIPRouter (Entity):
         else:
             self.discovered_nodes[neighbor] = None
             self.table[self][neighbor] = float("inf")
+            self.log("Link to Neighbor '%s' is down" %(str(neighbor)))
 
-        table_changed = self.update_belief() 
+        table_changed = False
+        #table_changed = self.update_belief() 
         if table_changed:
             # call a function to advertize
             self.advertize_my_dv_to_neighbors()
@@ -204,7 +224,12 @@ class RIPRouter (Entity):
 
     def handle_rx (self, packet, port):
 
+        self.log("----------------------------------------------------------------")
+        self.log("I am %s" %(str(self)))
+
         is_discovery_packet, is_routing_update = self.identify_packet(packet=packet)
+        dest, ttl = packet.dst, packet.ttl
+        self.log("Packet Arrived: %s, trying to go to %s" %(str(packet), str(dest)))
 
         if is_discovery_packet:
             self.handle_discovery_packet(packet=packet, port=port)
@@ -214,17 +239,19 @@ class RIPRouter (Entity):
             # this is the normal case
             #self.send(packet=packet, port=port, flood=False)
 
-            dest, ttl = packet.dst, packet.ttl
 
-            if dest == self:
+            if dest == self or dest == None:
                 # hand the packet over to the upper layer
+                self.log("Packet sent for processing")
                 self.send(packet=packet)
 
             if ttl == 0:
                 # packet dropped lol
+                self.log("Packet dropped because ttl is 0")
                 return
 
             exit_port = self.lookup_exit_port_for(dest=dest)
+            self.log("Sending packet to %s" %(str(dest)))
             self.send(packet=packet, port=exit_port, flood=False)
 
 
