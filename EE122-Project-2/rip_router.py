@@ -214,12 +214,15 @@ class RIPRouter (Entity):
             #self.table[self][neighbor] = 100 
 
             # remove neighbor from existance:
+            if not neighbor in self.discovered_nodes:
+                # haha we don't have to do anything
+                return
             self.discovered_nodes.pop(neighbor)
             self.table[self].pop(neighbor)
             self.mylog("Link to Neighbor '%s' is down" %(str(neighbor)))
 
         table_changed = False
-        #table_changed = self.update_belief() 
+        table_changed = self.update_belief() 
         if table_changed:
             # call a function to advertize
             self.advertize_my_dv_to_neighbors()
