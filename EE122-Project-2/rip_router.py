@@ -14,6 +14,7 @@ class RIPRouter (Entity):
          NOTE: Distance Vector D is also a dict (key, val) = (node, cost)
         """
         self.table = {}
+        self.debug = True
 
         # init self as a node with distance vector {}
         self.table[self] = {}
@@ -24,141 +25,17 @@ class RIPRouter (Entity):
             value = port # 
         """
         self.discovered_nodes = {}
-        
-            
-    def handle_rx(self, packet, port):
-        is_discovery_packet, is_routing_update = identify_packet(packet = packet)
-        source = packet.src
-        # if this is a discovery packet
-        if is_discovery_packet:
-            link_up = packet.is_link_up
-            if link_up:
-                self.discovered_nodes[source] = port
-                # if source is not in the routing table...
-                if source not in self.table:
-                    self.table[source] = {}
-                for destination, neighbors in self.table.items():
-                    
-        # if this is a routing update
-        elif is_routing_update:
-            '''
-            '''
-        # else, this is a normal packet
-        else:
-            lowestHop = self.lowest_hop(packet.dst)
-            if lowestHop != None:
-                newport = self.ports[lowestHop]
-                if newport != port:
-                    self.send(packet=packet, port=port, flood=False)
-            else:
-                # drop the packet
-                 pass
-            
-                        
-'''                                
-    def handle_rx (self, packet, port):
-        is_discovery_packet, is_routing_update = identify_packet(packet=packet)
-        withdrawn = None
-        tableChanged = False
-        if is_discovery_packet:
-            self.handle_discovery_packet(packet=packet, port=port)
-            # TODO: not sure yet...
-        elif is_routing_update:
-            # self.handle_routing_update_packet(packet=packet)
-            source = packet.src
-            for destination in all packet.all_dests():
-                if destination == self:
-                    pass
-                else:
-                    if packet.get_distance(destination) >= 100:
-                        if not self.table[source].has_key(destination):
-                            self.table[source][destination] = 100
-                        elif self.table[source][destination] != 100:
-                        # if our best past is about to be withdrawn, broadcast the withdrawal
-                            lowestHop = self.lowest_hop(destination)
-                            if lowestHop = source:
-                                withdrawn = destination
-                        # withdraw the path that goes through source to get to the withdrawn destination
-                            self.table[source][destination] = 100
-                            tableChanged = True
-                    else:
-                        distances = self.table[source][source]
-                        if self.tables[source][destination]:
-                            givenValue = self.table[source][destination]
-                            if distances + packet.get_distance(destination) < givenValue:
-                                self.table[source][destination] = distances + packet.get_distance(destination)
-                                tableChanged = True
-                        else:
-                            self.table[source][destination] = distances + packet.get_distance(destination)
-                            tableChanged = True
-        else:
-            # normal case
-            lowestHop = self.lowest_hop(packet.dst)
-            if lowestHop != None:
-                newport = self.ports[lowestHop]
-                if newport != port:
-                    self.send(packet=packet, port=port, flood=False)
-            else:
-                # drop the packet
-                 pass
 
-        if tableChanged:
-            self.send_routing_update(withdrawn)
-'''
+        """
+        Maps the destination to the best neighbor to pass the packet to 
+            key = destination node
+            value = neighbor node # 
+        """
+        self.routing_table = {}
 
-    def send_routing_update(self, withdrawn = None)
-        # iterate through table to find minimum distances to all destinations
-        destinations = {}
-        for (hop, distances) in self.table.items():
-            for (destination, distance) in distances.items():
-                if destinations.has_key(dest):
-                    if distance < destinations[destination]:
-                        destinations[destination] = distance
-                else:
-                    destinations[destination] = distance
-
-        # withdrawn != None, then we'll be sure to broadcast
-        # a cost of infinity to withdrawn
-        if withdrawn != None:
-            destination[withdrawn] = 100
-
-        # send out the packets with poison reverse
-        for hop in self.table.keys():
-            if self.ports.has_key(hop):
-                copiedDestinations = destinations.copy()
-                # this port is still connected
-                for destination in destinations.keys():
-                    if self.lowest_hop(destination) == hop:
-                        # don't poison distance to immediate neighbor
-                        if destination != hop:
-                            destinations[destination] = 100
-                # fill up routingUpdate packet with information
-                packet = RoutingUpdate()
-                for (destination, distance) in destinations.items():
-                    packet.add_destination(destination, distance)
-                self.send(packet, self.ports[hop])
-            
-
-    def lowest_hop(self, dest)
-        # look up the route with the lowest hop count
-        minValue = 100
-        minPort = None
-        minEntity = None
-        for hop in self.table.keys():
-            if self.table[hop].has_key(dest):
-                givenValue = self.table[hop][dest]
-                if givenValue < minValue:
-                    minValue = givenValue
-                    minPort = self.ports[hop]
-                    minEntity = hop
-            elif givenValue < 100 and givenValue == minValue:
-                givenPort = self.ports[hop]
-                if port < minPort:
-                    minPort = port
-                    minEntity = hop
-        return minEntity
-
-
+    def log(self, message, caller="(rip_router)"):
+        if self.debug:
+            print "%s: %s" %(str(caller), str(message))
 
     def get_distance_vector_of(self, node):
         """
@@ -167,21 +44,17 @@ class RIPRouter (Entity):
         dv = self.table[node]
         return dv
 
-
     def get_neighbors(self):
         """
         Highly doubt anything is going to call this
         """
         n = self.discovered_nodes.keys()
 
-        
     def get_cost_of_neighbor(self, neighbor):
         """
         This is bullshit, but exists so that we can generalize just in case
         """
         return 1
-
-
 
     def identify_packet(self, packet):
         """
@@ -194,44 +67,249 @@ class RIPRouter (Entity):
         return is_discovery_packet, is_routing_update
 
 
-    
-    def handle_discovery_packet(self, packet, port, src):
+
+    def get_min_cost_if_sent_to_neighbor_closest_to_dest(self, dest):
+        self.log("get_min_cost called with destination %s" %(str(dest)))
+        min_cost = 100 
+        my_dv = self.table[self]
+        for neighbor, port in self.discovered_nodes.items():
+            if neighbor == dest:
+                self.log("\tThe neighbor is the dest")
+                return self.table[self][neighbor]
+
+            neighbor_dv = self.table[neighbor]
+            if not dest in neighbor_dv:
+                # neighbor doesn't know how to get to dest, so theres no point
+                self.log("Neighbor %s doesn't know how to get to dest %s" %(str(neighbor), str(dest)))
+                continue
+
+            cost_to_neighbor = 1 
+            cost_to_dest_from_neighbor = self.table[neighbor][dest]
+            cost_to_dest = cost_to_neighbor + cost_to_dest_from_neighbor
+
+            if cost_to_dest < min_cost:
+                min_cost = cost_to_dest
+                self.log("Added %s : (%s, %s) to routing table" %(str(dest), str(neighbor), str(port)))
+                self.routing_table[dest] = (neighbor, port)
+
+        return min_cost
+
+
+    def update_belief(self):
+        table_changed = False
+
+        self.log("update belief called")
+        my_dv = self.table[self]
+        for node, distance in my_dv.items():
+            if node == self:
+                continue
+
+            old_dist = distance 
+            new_min_dist = self.get_min_cost_if_sent_to_neighbor_closest_to_dest(dest=node)
+            self.log("Old dist is %s and new_min_dist = %s" %(str(old_dist), str(new_min_dist)))
+            if not old_dist == new_min_dist:
+                self.log("\tDist changed from %s to %s for neighbor %s" %(str(old_dist), str(new_min_dist), str(node)))
+                table_changed = True
+
+            self.table[self][node] = new_min_dist 
+
+        return table_changed
+
+    def add_new_possible_destinations_to_my_dv(self, new_dv):
+        for possible_destination, distance in new_dv.items():
+            # add this new reachable destination to my dv
+            self.table[self][possible_destination] = distance
+
+    def add_dv_to_table(self, source, dv):
+        """
+        Handles dv insertion into table, returns True if table changed or false ow
+        """
+        if source in self.table and self.table[source] == dv:
+            self.log("the old dv %s and new dv %s are the same for %s" %(str(self.table[source]), str(dv), str(source)))
+            return False
+        
+        self.log("adding dv '%s' to source '%s'" %(str(dv), str(source)))
+        # table changed for sure, at this point
+        self.table[source] = dv
+        self.add_new_possible_destinations_to_my_dv(new_dv=dv)
+        table_changed = self.update_belief()
+        return table_changed
+
+    def get_poisoned_dv_for_neighbor(self, neighbor):
+        my_dv = self.table[self]
+        #poisoned_dv = self.table[self].copy()
+        poisoned_dv = {}
+        neighbor_dv = self.table[neighbor]
+
+        # if neighbor already has a better idea to get to a certain destination, poison!
+        for destination, distance in my_dv.items():
+            if destination == neighbor:
+                # Must not EVER advertize my own believed distance to my neighbor
+                continue
+
+            if not destination in neighbor_dv:
+                # Can't poison, because neighbor doesn't even know how to get to this destination.
+                # I must tell my neighbor
+                poisoned_dv[destination] = distance
+                continue
+
+            cost_for_neighbor_to_destination = neighbor_dv[destination]
+            cost_for_me_to_destination = my_dv[destination]
+
+            if cost_for_neighbor_to_destination < cost_for_me_to_destination:
+                # dont even bother telling. Pretend I can't get to destination
+                self.log("Poisoned neighbor '%s' for destination '%s'" %(str(neighbor), str(destination)))
+                poisoned_dv[destination] = 100
+
+        return poisoned_dv
+
+    def advertize_my_dv_to_neighbors(self):
+        self.log("called advertize")
+
+        for neighbor, port in self.discovered_nodes.items():
+            if neighbor == self:
+                continue
+            if port == None:
+                # the link to this neighbor is down
+                self.log("Port for neighbor %s is %s" %(str(neighbor), str(port)))
+                continue
+            
+            poisoned_dv = self.get_poisoned_dv_for_neighbor(neighbor=neighbor)
+
+            update_packet = RoutingUpdate()
+            update_packet.paths = poisoned_dv
+
+            self.log("Advertizing to neighbor: %s" %(str(neighbor)))
+            self.log("Advertizement: " + str(update_packet.paths))
+            self.send(packet=update_packet, port=port, flood=False)
+
+    def handle_discovery_packet(self, packet, port):
         """
         Add (or remove, if not is_link_up) packet.src to discovered_nodes and update table accordingly 
         """
         link_up = packet.is_link_up
+        neighbor = packet.src
         if link_up:
-            self.discovered_nodes[packet.src] = port
+            if not neighbor in self.discovered_nodes:
+                # if neighbor is not already there
+                # initialize a dv for our dear neighbor
+                self.log("New neighbor '%s' discovered" %(str(neighbor)))
+                self.table[neighbor] = {}
+            self.table[self][neighbor] = 1
+
+            self.discovered_nodes[neighbor] = port
         else:
-            self.discovered_nodes[packet.src] = None
+            self.discovered_nodes[neighbor] = None
+            self.table[self][neighbor] = 100 
+            self.log("Link to Neighbor '%s' is down" %(str(neighbor)))
 
-        # TODO: Update table intelligently here
+        table_changed = False
+        #table_changed = self.update_belief() 
+        if table_changed:
+            # call a function to advertize
+            self.advertize_my_dv_to_neighbors()
 
-
-
-'''
-    def handle_routing_update_packet(self, packet):
+    def handle_routing_update_packet(self, packet, port):
         """
         Get routing table information from someone else, and update table accordingly
         """
         # the distance vector given by the update packet
-        # dv = packet.paths
-        source = packet.src
-    
-        # TODO: Update table intelligently here
-        for destination in all packet.all_dests():
-            if destination == self:
-                pass
-            else:
-                if packet.get_distance(destination) >= 100:
-                    if not self.table[source].has_key(destination):
-                        self.table[source][destination] = 100
-                    elif self.table[source][destination] != 100:
-                        # if our best past is about to be withdrawn, broadcast the withdrawal
-                        lowestHop = self.lowest_hop(destination)
-                        if lowestHop = source:
-                            withdrawn = destination
-                        # withdraw the path that goes through source to get to the withdrawn destination
-                        self.table[source][destination] = 100
-(see handle_rx for the alg)
-'''                        
+        self.log("received update packet: %s" %(str(packet)))
+        dv = packet.paths
+        table_changed = self.add_dv_to_table(source=packet.src, dv=dv)
+
+        if table_changed:
+            # call a function to advertize
+            self.advertize_my_dv_to_neighbors()
+
+    def lookup_exit_port_for(self, dest):
+        """
+        Studies our belief form the distance vectors of all our neighbors,
+        and picks the best neighbor to pass packet to and returns the port of this neighbor
+        """
+        #min_dist = float("inf")
+        #best_neighbor = None
+
+        ##if dest in self.discovered_nodes:
+            ### if the neighbor is the destination itself
+            ### and the link to this dest is up,
+            ### return the port that goes to dest
+            ##best_neighbor = dest
+            ##exit_port = self.discovered_nodes[dest]
+            ##if exit_port:
+                ##return exit_port
+
+        #for node, dv in self.table.items():
+            #if node == self:
+                #continue
+            #if not dest in dv:
+                ## this node has no freakin clue how to get to dest
+                #continue
+
+            #dist = dv[dest]
+            #if dist < min_dist:
+                #min_dist = dist
+                #best_neighbor = node
+
+        #if not best_neighbor:
+            ## if best_neighbor not found, we are screwd.
+            ## this means that this is a dead end
+            ## luckily, this will be rare
+            #return None
+
+        #exit_port = self.discovered_nodes[best_neighbor]
+        #return exit_port
+
+        best_neighbor, exit_port = self.routing_table[dest]
+
+
+    def handle_rx (self, packet, port):
+
+        self.log("----------------------------------------------------------------")
+        self.log("I am %s" %(str(self)))
+
+        is_discovery_packet, is_routing_update = self.identify_packet(packet=packet)
+        dest, ttl = packet.dst, packet.ttl
+        self.log("Packet Arrived: %s, trying to go to %s" %(str(packet), str(dest)))
+
+        if is_discovery_packet:
+            self.handle_discovery_packet(packet=packet, port=port)
+        elif is_routing_update:
+            self.handle_routing_update_packet(packet=packet, port=port)
+        else:
+            # this is the normal case
+            #self.send(packet=packet, port=port, flood=False)
+
+
+            if dest == self or dest == None:
+                # hand the packet over to the upper layer
+                self.log("Packet sent for processing")
+                self.send(packet=packet)
+
+            if ttl == 0:
+                # packet dropped lol
+                self.log("Packet dropped because ttl is 0")
+                return
+
+            best_neighbor, exit_port = self.lookup_exit_port_for(dest=dest)
+            self.log("Sending packet to %s" %(str(dest)))
+            self.send(packet=packet, port=exit_port, flood=False)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
