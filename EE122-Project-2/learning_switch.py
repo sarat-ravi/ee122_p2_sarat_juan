@@ -15,7 +15,6 @@ class LearningSwitch(Entity):
         destination = packet.dst
         ttl = packet.ttl
         trace = packet.trace
-
         return source, destination, ttl, trace
 
     def destination_is_known(self, destination):
@@ -27,7 +26,6 @@ class LearningSwitch(Entity):
 
     def update_table(self, source, port):
         # Returns true if table has been updated 
-
         if source in self.table and self.table[source] == port:
             return False
 
