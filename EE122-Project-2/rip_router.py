@@ -14,7 +14,7 @@ class RIPRouter (Entity):
          NOTE: Distance Vector D is also a dict (key, val) = (node, cost)
         """
         self.table = {}
-        self.saratdebug = True
+        self.saratdebug = False
 
         # init self as a node with distance vector {}
         self.table[self] = {}
@@ -219,6 +219,7 @@ class RIPRouter (Entity):
                 if neighbor in self.deleted_nodes:
                     self.mylog("Old neighbor '%s' is back online" %(str(neighbor)))
                     self.table[neighbor] = self.deleted_nodes[neighbor]
+                    self.deleted_nodes.pop(neighbor)
                 else:
                     self.mylog("New neighbor '%s' discovered" %(str(neighbor)))
                     self.table[neighbor] = {}
@@ -233,7 +234,7 @@ class RIPRouter (Entity):
             if not neighbor in self.discovered_nodes:
                 # haha we don't have to do anything
                 return
-            self.deleted_nodes[neighbor] = self.table[neighbor].copy()
+            #self.deleted_nodes[neighbor] = self.table[neighbor].copy()
 
             self.discovered_nodes.pop(neighbor)
             self.table[self].pop(neighbor)
@@ -253,6 +254,13 @@ class RIPRouter (Entity):
         # the distance vector given by the update packet
         self.mylog("received update packet: %s" %(str(packet)))
         dv = packet.paths
+    
+        source = packet.src
+        if source in self.deleted_nodes:
+            # if this link is down, ignore
+            self.mylog("Dropping update packet from '%s'" %(str(source)))
+            return
+
         table_changed = self.add_dv_to_table(source=packet.src, dv=dv)
 
         if table_changed:
