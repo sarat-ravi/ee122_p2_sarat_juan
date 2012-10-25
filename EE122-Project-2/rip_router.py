@@ -75,7 +75,8 @@ class RIPRouter (Entity):
         for neighbor, port in self.discovered_nodes.items():
             if neighbor == dest:
                 self.mylog("\tThe neighbor is the dest")
-                return self.table[self][neighbor]
+                #return self.table[self][neighbor]
+                return 1 
 
             neighbor_dv = self.table[neighbor]
             if not dest in neighbor_dv:
@@ -129,6 +130,7 @@ class RIPRouter (Entity):
                 # so we must make it unreachable by making its cost 100
                 # or by popping. Dont know yet
                 self.table[source][old_neighbors_believed_destination] = 100
+                #self.table[self][old_neighbors_believed_destination] = 100
                 #self.table[source].pop(old_neighbors_believed_destination)
 
     def add_dv_to_table(self, source, dv):
