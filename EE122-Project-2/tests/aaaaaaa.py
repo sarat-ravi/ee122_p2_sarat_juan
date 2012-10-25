@@ -105,14 +105,12 @@ def create (switch_type = FakeEntity, host_type = FakeEntity, n = 2):
     topo.link(B, Z)
     time.sleep(waittime)
     if(failed):
-        print "Failed case 1"
         return
 
     print "Case 2: A B-Z"
     topo.unlink(A, B)    #A   B - Z
     time.sleep(waittime)
     if(failed):
-        print "Failed case 2"
         return
 
     print "Case 3: A-B Z"
@@ -121,7 +119,6 @@ def create (switch_type = FakeEntity, host_type = FakeEntity, n = 2):
     topo.link(A, B)      #A - B   Z
     time.sleep(waittime)
     if(failed):
-        print "Failed case 3"
         return
 
     print "Case 4: A-B-C-D-E-Z"
@@ -132,14 +129,12 @@ def create (switch_type = FakeEntity, host_type = FakeEntity, n = 2):
     topo.link(D, E)
     time.sleep(waittime)
     if(failed):
-        print "Failed case 4"
         return
 
     print "Case 5: Circle(A,E)-Z"
     topo.link(E, A)      #A - B - C - D - E - Z
     time.sleep(waittime) # \_____________/
     if(failed):
-        print "Failed case 5"
         return
 
     print "Case 6: Clique(A,E)-Z"
@@ -156,7 +151,6 @@ def create (switch_type = FakeEntity, host_type = FakeEntity, n = 2):
     #topo.link(D, E)     #   Clique
     time.sleep(waittime)
     if(failed):
-        print "Failed case 6"
         return
 
     print "Case 7: Centralize(A,{B,C,D,E,Z}"
@@ -175,7 +169,6 @@ def create (switch_type = FakeEntity, host_type = FakeEntity, n = 2):
     topo.link(A, Z)
     time.sleep(waittime)
     if(failed):
-        print "Failed case 7"
         return
 
     print "Case 8: Centralize(A,Circle(B-E,Z))"
@@ -188,7 +181,6 @@ def create (switch_type = FakeEntity, host_type = FakeEntity, n = 2):
     topo.link(Z, B)         #      \  / \  /
     time.sleep(waittime)    #       C-----D
     if(failed):
-        print "Failed case 8"
         return
 
     print "Case 9: A-B-Branch(Z, C-D-E, F-G)"
@@ -204,35 +196,28 @@ def create (switch_type = FakeEntity, host_type = FakeEntity, n = 2):
     #print "REM"
     #topo.unlink(C, D)
     #topo.unlink(D, E)
-    print "checkpoint 1"
     time.sleep(waittime)
-    raise Exception("asdfasdfa")
     topo.link(B, Z)
     time.sleep(waittime/2)
-    print "checkpoint 2"
     Z.send_specific_announce({F: 1, G: 2, C: 1, D: 2, E: 3})
     time.sleep(waittime/2)
     topo.unlink(B, Z)
     topo.link(Z, C)
     time.sleep(waittime/2)
-    print "checkpoint 3"
     Z.send_specific_announce({F: 1, G: 2, B: 1, A: 2})
     time.sleep(waittime/2)   #
     topo.unlink(C, Z)        #             F - G
     topo.link(Z, F)          #             |
     time.sleep(waittime/2)   #     A - B - Z - C - D - E
-    print "checkpoint 4"
     Z.send_specific_announce({B: 1, A: 2, C: 1, D: 2, E: 3})
     time.sleep(waittime/2)
     topo.unlink(F, G)
-    print "checkpoint 5"
     Z.send_specific_announce({B: 1, A: 2, C: 1, D: 2, E: 3, G: 100})
     #print "NIM"
     time.sleep(waittime/2)
     topo.link(F, G)
     time.sleep(waittime)
     if(failed):
-        print "Failed case 9"
         return
 
     print "Case 10: EShaped(ABC,EHD,FGZ)"
@@ -254,7 +239,6 @@ def create (switch_type = FakeEntity, host_type = FakeEntity, n = 2):
     topo.disconnect(H)
     time.sleep(waittime)
     if(failed):
-        print "Failed case 10"
         return
 
     A.remove()

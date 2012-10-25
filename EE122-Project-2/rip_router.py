@@ -14,7 +14,7 @@ class RIPRouter (Entity):
          NOTE: Distance Vector D is also a dict (key, val) = (node, cost)
         """
         self.table = {}
-        self.saratdebug = False
+        self.saratdebug = True
 
         # init self as a node with distance vector {}
         self.table[self] = {}
@@ -32,6 +32,13 @@ class RIPRouter (Entity):
             value = neighbor node # 
         """
         self.routing_table = {}
+
+        """
+        maps a deleted node to its believed distance vector
+            key = deleted node
+            value = distance vector of that node
+        """
+        self.deleted_nodes = {}
 
     def mylog(self, message, caller="(rip_router)"):
         if self.saratdebug:
@@ -159,6 +166,8 @@ class RIPRouter (Entity):
             if destination == neighbor:
                 # Must not EVER advertize my own believed distance to my neighbor
                 continue
+            else:
+                poisoned_dv[destination] = distance
 
             if not destination in neighbor_dv:
                 # Can't poison, because neighbor doesn't even know how to get to this destination.
@@ -193,6 +202,7 @@ class RIPRouter (Entity):
             update_packet.paths = poisoned_dv
 
             self.mylog("Advertizing to neighbor: %s" %(str(neighbor)))
+            self.mylog("Before Poisoned: Advertizement: " + str(self.table[self]))
             self.mylog("Advertizement: " + str(update_packet.paths))
             self.send(packet=update_packet, port=port, flood=False)
 
@@ -206,8 +216,12 @@ class RIPRouter (Entity):
             if not neighbor in self.discovered_nodes:
                 # if neighbor is not already there
                 # initialize a dv for our dear neighbor
-                self.mylog("New neighbor '%s' discovered" %(str(neighbor)))
-                self.table[neighbor] = {}
+                if neighbor in self.deleted_nodes:
+                    self.mylog("Old neighbor '%s' is back online" %(str(neighbor)))
+                    self.table[neighbor] = self.deleted_nodes[neighbor]
+                else:
+                    self.mylog("New neighbor '%s' discovered" %(str(neighbor)))
+                    self.table[neighbor] = {}
             self.table[self][neighbor] = 1
 
             self.discovered_nodes[neighbor] = port
@@ -219,8 +233,11 @@ class RIPRouter (Entity):
             if not neighbor in self.discovered_nodes:
                 # haha we don't have to do anything
                 return
+            self.deleted_nodes[neighbor] = self.table[neighbor].copy()
+
             self.discovered_nodes.pop(neighbor)
             self.table[self].pop(neighbor)
+            self.table.pop(neighbor)
             self.mylog("Link to Neighbor '%s' is down" %(str(neighbor)))
 
         table_changed = False
